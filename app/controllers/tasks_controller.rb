@@ -3,23 +3,27 @@ class TasksController < ApplicationController
   before_action :require_user_logged_in, only: [:index, :show]
   
   def index
-    @tasks = Task.all.page(params[:page])
+    if logged_in?
+      @user = current_user
+      @task = current_user.tasks.build
+      @tasks = current_user.tasks.order('created_at DESC').page(params[:page])
+    end
   end
   
   def show
   end
   
   def new
-    @task = Task.new
+    @task =  current_user.tasks.build
   end
   
   def create
-    @task = Task.new(task_params)
-    
+    @task =  current_user.tasks.build(task_params)
     if @task.save
       flash[:success] = 'Task が正常に投稿されました'
-      redirect_to @task
+      redirect_to root_url
     else
+      @tasks = current_user.tasks.order('created_at DESC').page(params[:page])
       flash.now[:danger] = 'Task が投稿されませんでした'
       render :new
     end
@@ -40,9 +44,8 @@ class TasksController < ApplicationController
   
   def destroy
     @task.destroy
-    
     flash[:success] = 'Task は正常に削除されました'
-    redirect_to tasks_url
+    redirect_back(fallback_location: root_path)
   end
   
   private
@@ -53,5 +56,12 @@ class TasksController < ApplicationController
   
   def task_params
     params.require(:task).permit(:content, :status)
+  end
+  
+  def correct_user
+    @micropost = current_user.microposts.find_by(id: params[:id])
+    unless @micropost
+      redirect_to root_url
+    end
   end
 end
